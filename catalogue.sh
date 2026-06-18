@@ -32,12 +32,16 @@ VALIDATE(){
         exit 1
     fi
 }
-dnf module disable nodejs -y | tee -a $LOG_FILE
-VALIDATE $? "diabling nodejs"
-dnf module enable nodejs:20 -y | tee -a $LOG_FILE
-VALIDATE $? "diabling nodejs"
-dnf install nodejs -y  | tee -a $LOG_FILE
-VALIDATE $? "installing nodejs"
+
+dnf module disable nodejs -y &>>$LOG_FILE
+VALIDATE $? "Disabling default nodejs"
+
+dnf module enable nodejs:20 -y &>>$LOG_FILE
+VALIDATE $? "Enabling nodejs:20"
+
+dnf install nodejs -y &>>$LOG_FILE
+VALIDATE $? "Installing nodejs:20"
+
 id roboshop
 if [ $? -ne 0 ]
 then
@@ -46,6 +50,7 @@ then
 else
     echo -e "System user roboshop already created ... $Y SKIPPING $N"
 fi
+
 mkdir -p /app 
 VALIDATE $? "Creating app directory"
 
@@ -59,11 +64,20 @@ VALIDATE $? "unzipping catalogue"
 
 npm install &>>$LOG_FILE
 VALIDATE $? "Installing Dependencies"
+
+cp $SCRIPT_DIR/catalogue.service /etc/systemd/system/catalogue.service
+VALIDATE $? "Copying catalogue service"
+
+systemctl daemon-reload &>>$LOG_FILE
+systemctl enable catalogue  &>>$LOG_FILE
+systemctl start catalogue
+VALIDATE $? "Starting Catalogue"
+
 cp $SCRIPT_DIR/mongo.repo /etc/yum.repos.d/mongo.repo 
 dnf install mongodb-mongosh -y &>>$LOG_FILE
 VALIDATE $? "Installing MongoDB Client"
-STATUS=$(mongosh --host mongodb.jhansidevops.icu --eval 'db.adminCommand("listDatabases").databases.map(d => d.name).indexOf("catalogue")')
 
+STATUS=$(mongosh --host mongodb.jhansidevops.icu --eval 'db.getMongo().getDBNames().indexOf("catalogue")')
 if [ $STATUS -lt 0 ]
 then
     mongosh --host mongodb.jhansidevops.icu </app/db/master-data.js &>>$LOG_FILE
@@ -71,3 +85,4 @@ then
 else
     echo -e "Data is already loaded ... $Y SKIPPING $N"
 fi
+
