@@ -62,10 +62,11 @@ VALIDATE $? "Installing Dependencies"
 cp $SCRIPT_DIR/mongo.repo /etc/yum.repos.d/mongo.repo 
 dnf install mongodb-mongosh -y &>>$LOG_FILE
 VALIDATE $? "Installing MongoDB Client"
-STATUS=$(mongosh --host mongodb.jhansidevops.icu --eval 'db.getMongo().getDBNames().indexOf("catalogue")')
+STATUS=$(mongosh --host mongodb.jhansidevops.icu --eval 'db.adminCommand("listDatabases").databases.map(d => d.name).indexOf("catalogue")')
+
 if [ $STATUS -lt 0 ]
 then
-    mongosh --host mongo </app/db/master-data.js &>>$LOG_FILE
+    mongosh --host mongodb.jhansidevops.icu </app/db/master-data.js &>>$LOG_FILE
     VALIDATE $? "Loading data into MongoDB"
 else
     echo -e "Data is already loaded ... $Y SKIPPING $N"
